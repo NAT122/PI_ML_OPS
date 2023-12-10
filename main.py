@@ -3,30 +3,28 @@ import pandas as pd
 import numpy as np
 
 
-app = FastAPI()
+app = FastAPI(debug=True)
 
 # Cargar el DataFrame df_items
 df_items = pd.read_csv(r'D:\Users\Natalia\Desktop\csv_limpios\df_items.csv')
 
-dtypes = {'año': str, 'id':object}
-df_games = pd.read_csv(r'D:\Users\Natalia\Desktop\csv_limpios\df_games.csv', dtype=dtypes)
+df_games = pd.read_csv(r'D:\Users\Natalia\Desktop\csv_limpios\df_games.csv')
 
-dtypes = {'año_publicado': str}  # Cambiar 'str' al tipo de dato deseado, por ejemplo 'object'
-
-# Cargar el archivo CSV con los tipos de datos especificados
-df_review = pd.read_csv(r'D:\Users\Natalia\Desktop\csv_limpios\df_reviews.csv', dtype=dtypes)
+df_review = pd.read_csv(r'D:\Users\Natalia\Desktop\csv_limpios\df_reviews.csv')
 
 
 
 
 def PlayTimeGenre(genero: str):
-    # Supongamos que tienes df_games cargado de alguna manera antes de esta función
-    # También, puedes cargar df_games de la misma manera que df_items en caso de tener un archivo CSV o similar
-
+    """""
+    Devuelve año con mas horas jugadas para dicho género.
+    """
+    
+    # Verificar si el género está presente como una columna en df_games
     if genero not in df_games.columns:
         return f"No se encontró información para el género {genero}"
 
-    # Filtrar el DataFrame de juegos para obtener los juegos que pertenecen al género específico
+    # Filtrar el df de juegos para obtener los juegos que pertenecen al género específico
     juegos_genero = df_games[df_games[genero] == 1]
 
     if juegos_genero.empty:
@@ -35,21 +33,25 @@ def PlayTimeGenre(genero: str):
     # Obtener los nombres de los juegos para el género específico
     nombres_juegos_genero = juegos_genero['app_name']
 
-    # Filtrar el DataFrame de horas jugadas para obtener las horas correspondientes a esos nombres de juegos
+    # Filtrar el df de horas jugadas para obtener las horas correspondientes a esos nombres de juegos
     horas_jugadas_genero = df_items[df_items['item_name'].isin(nombres_juegos_genero)]
 
     # Convertir la columna 'id' a int64 si es posible
     df_games['id'] = pd.to_numeric(df_games['id'], errors='coerce')
 
-    # Fusionar los DataFrames después de convertir las columnas al mismo tipo
+    # Fusionar los df después de convertir las columnas al mismo tipo
     horas_jugadas_genero = horas_jugadas_genero.merge(df_games[['id', 'año']], left_on='item_id', right_on='id')
 
     # Encontrar el año con más horas jugadas para el género específico
     año_mas_horas = horas_jugadas_genero.groupby('año')['playtime_forever'].sum().idxmax()
 
-    return {f"Año de lanzamiento con más horas jugadas para el género {genero}":año_mas_horas}
+    return {f"Año de lanzamiento con más horas jugadas para el género {genero}": año_mas_horas}
 
-def UserForGenre(genero: str, df_games: pd.DataFrame, df_items: pd.DataFrame):
+def UserForGenre(genero: str):
+    """""
+    Devuelve el usuario que acumula más horas jugadas para el género dado 
+    y una lista de la acumulación de horas jugadas por año.
+    """
     # Filtrar juegos por género
     juegos_genero = df_games[df_games[genero] == 1]
     if juegos_genero.empty:
@@ -68,15 +70,18 @@ def UserForGenre(genero: str, df_games: pd.DataFrame, df_items: pd.DataFrame):
 
     return user_mas_horas, horas_por_año
 
-def UsersRecommend(año: int, df_items: pd.DataFrame, df_review: pd.DataFrame):
-    # Convertir la columna 'año_publicado' a tipo numérico (si es posible)
-    df_review['año_publicado'] = pd.to_numeric(df_review['año_publicado'], errors='coerce')
+def UsersRecommend(año: int):
+    """""
+    Devuelve el top 3 de juegos MÁS recomendados por usuarios para el año dado
+    basandose en reviews.recommend = True y comentarios positivos/neutrales
+    """
 
     # Filtrar las reviews para el año dado, recomendadas y con análisis de sentimiento bueno o neutral
     filtered_reviews = df_review[(df_review['año_publicado'].notnull()) & 
                                  (df_review['año_publicado'] == año) & 
+                                 (df_review['recommend'] == True) & 
                                  (df_review['sentiment_analysis']== 2) | (df_review['sentiment_analysis'] == 1)]
-                                  #.isin([1, 2]))]
+                                  
 
     # Obtener los user_ids de las reviews filtradas
     user_ids_recomendados = filtered_reviews['user_id']
@@ -87,18 +92,20 @@ def UsersRecommend(año: int, df_items: pd.DataFrame, df_review: pd.DataFrame):
     # Obtener los nombres de los juegos más jugados por los usuarios recomendados
     top_games = items_jugados_recomendados['item_name'].value_counts().head(3)
 
-    # Crear la estructura de retorno con el top 3 de juegos más jugados por usuarios recomendados
-    result = [{"Puesto " + str(i + 1): juego} for i, juego in enumerate(top_games.index)]
-    return result
+    #Itera sobre top_games sumandole un valor al idice (comienza en 0) para devolver el puesto y el juego
+    resultado = [{"Puesto " + str(i + 1): juego} for i, juego in enumerate(top_games.index)]
+    return resultado
 
-def UsersNotRecommend(año: int, df_items: pd.DataFrame, df_review: pd.DataFrame):
-    # Convertir la columna 'año_publicado' a tipo numérico (si es posible)
-    df_review['año_publicado'] = pd.to_numeric(df_review['año_publicado'], errors='coerce')
-
+def UsersNotRecommend(año: int):
+    """""
+    Devuelve el top 3 de juegos MENOS recomendados por usuarios para el año dado.
+    basandose en reviews.recommend = False y comentarios negativos
+    """
+    
     # Filtrar las reviews para el año dado, no recomendadas y con análisis de sentimiento negativo
     filtered_bad_reviews = df_review[(df_review['año_publicado'].notnull()) & 
                                      (df_review['año_publicado'] == año) & 
-                                 
+                                     (df_review['recommend'] == False) & 
                                      (df_review['sentiment_analysis'] == 0)]
 
     # Obtener los user_ids de las reviews filtradas
@@ -110,14 +117,17 @@ def UsersNotRecommend(año: int, df_items: pd.DataFrame, df_review: pd.DataFrame
     # Obtener los nombres de los juegos menos jugados por los usuarios no recomendados
     less_games = items_jugados_no_recomendados['item_name'].value_counts().head(3)
 
-    # Crear la estructura de retorno con el top 3 de juegos menos jugados por usuarios no recomendados
-    result = [{"Puesto " + str(i + 1): juego} for i, juego in enumerate(less_games.index)]
-    return result
+    #Itera sobre top_games sumandole un valor al idice (comienza en 0) para devolver el puesto y el juego
+    resultado = [{"Puesto " + str(i + 1): juego} for i, juego in enumerate(less_games.index)]
+    return resultado
 
-def sentiment_analysis(año: int, df_review: pd.DataFrame):
-    # Convertir la columna 'año_publicado' a tipo numérico (si es posible)
-    df_review['año_publicado'] = pd.to_numeric(df_review['año_publicado'], errors='coerce')
-
+def sentiment_analysis(año: int):
+    """""
+    Según el año de lanzamiento, se devuelve una lista con la cantidad 
+    de registros de reseñas de usuarios que se encuentren categorizados con un análisis de sentimiento.
+    2=positivo 1=neutral 0=negativo
+    """
+    
     # Filtrar las reviews para el año dado, excluyendo los valores nulos en 'año_publicado'
     reviews_year = df_review[(df_review['año_publicado'].notnull()) & (df_review['año_publicado'] == año)]
 
@@ -125,10 +135,10 @@ def sentiment_analysis(año: int, df_review: pd.DataFrame):
     sentiment_counts = reviews_year['sentiment_analysis'].replace({0: 'Negative', 1: 'Neutral', 2: 'Positive'}).value_counts()
 
     # Crear el diccionario con la cantidad de registros por categoría de sentimiento
-    result = {sentiment: sentiment_counts.get(sentiment, 0) for sentiment in ['Negative', 'Neutral', 'Positive']}
-    return result
+    resultado = {sentiment: sentiment_counts.get(sentiment, 0) for sentiment in ['Negative', 'Neutral', 'Positive']}
+    return resultado
 
-# Agrega las rutas para cada función
+#  rutas para cada función
 @app.get("/playtime_genre/{genero}", description="Obtiene el año con más horas jugadas para un género específico.")
 def get_playtime_genre(genero: str):
     resultado = PlayTimeGenre(genero)
@@ -139,19 +149,19 @@ def get_user_for_genre(genero: str):
     resultado = UserForGenre(genero)
     return {"resultado": resultado}
 
-@app.get("/user_recommend/{genero}", description="Obtiene recomendaciones de usuario para un género específico.")
-def get_user_recommend(genero: str):
-    resultado = UserRecommend(genero)
+@app.get("/user_recommend/{año}", description="Obtiene top 3 de juegos más recomendados para un año específico.")
+def get_user_recommend(año: int):
+    resultado = UsersRecommend(año)
     return {"resultado": resultado}
 
-@app.get("/user_no_recommend/{genero}", description="Obtiene usuarios sin recomendaciones para un género específico.")
-def get_user_no_recommend(genero: str):
-    resultado = UserNoRecommend(genero)
+@app.get("/user_no_recommend/{año}", description="Obtiene top 3 de juegos menos recomendados para un año específico.")
+def get_user_no_recommend(año: int):
+    resultado = UsersNotRecommend(año)
     return {"resultado": resultado}
 
-@app.get("/sentiment_analysis/{genero}", description="Realiza análisis de sentimiento para un género específico.")
-def get_sentiment_analysis(genero: str):
-    resultado = SentimentAnalysis(genero)
+@app.get("/sentiment_analysis/{año}", description="Realiza análisis de sentimiento en un año específico.")
+def get_sentiment_analysis(año: int):
+    resultado = sentiment_analysis(año)
     return {"resultado": resultado}
 
 # Ejecutar la aplicación con Uvicorn en el puerto 8000
