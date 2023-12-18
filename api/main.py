@@ -14,18 +14,14 @@ from sklearn.metrics.pairwise import cosine_similarity
 app = FastAPI(debug=True)
 
 # Cargar el DataFrame df_items
-#df_items = pd.read_csv(r'D:\Users\Natalia\Desktop\csv_limpios\df_items.csv')
 
-#df_games = pd.read_csv(r'D:\Users\Natalia\Desktop\csv_limpios\df_games.csv')
-
-#df_review = pd.read_csv(r'D:\Users\Natalia\Desktop\csv_limpios\df_reviews.csv')
 df_review= pd.read_csv(ZipFile('df_reviews.zip').open('df_reviews.csv'))
 df_games= pd.read_csv(ZipFile('df_games.zip').open('df_games.csv'))
 df_items= pd.read_csv(ZipFile('df_items.zip').open('df_items.csv'))
 
-#df_funcion = pd.read_csv(r'D:\Users\Natalia\Desktop\csv_limpios\df_recomendaciones.csv')
+
 df_funcion= pd.read_csv(ZipFile('df_recomendaciones.zip').open('df_recomendaciones.csv'))
-#cosine_similarity = joblib.load(r'D:\Users\Natalia\Desktop\cosine_similarity.pkl')
+
 cosine_similarity = joblib.load(ZipFile('cosine_similarity.zip').open('cosine_similarity.pkl'))
 
 def PlayTimeGenre(genero: str):
@@ -89,16 +85,23 @@ def UsersRecommend(anio: int, df_items: pd.DataFrame, df_review: pd.DataFrame):
     Devuelve el top 3 de juegos MÁS recomendados por usuarios para el año dado
     basandose en reviews.recommend = True y comentarios positivos/neutrales
     """
-    filtered_reviews = df_review[
-        (df_review['año_publicado'].fillna(0).astype(int) == anio) &
-        (df_review['recommend']) &
-        ((df_review['sentiment_analysis'] == 2) | (df_review['sentiment_analysis'] == 1))
-    ]
 
+    # Filtrar las reviews para el año dado, recomendadas y con análisis de sentimiento bueno o neutral
+    filtered_reviews = df_review[(df_review['año_publicado'].fillna(0).astype(int) == anio) &
+                                 (df_review['recommend'] == True) & 
+                                 (df_review['sentiment_analysis']== 2) | (df_review['sentiment_analysis'] == 1)]
+                                  
+
+    # Obtener los user_ids de las reviews filtradas
     user_ids_recomendados = filtered_reviews['user_id']
+
+    # Filtrar los items jugados por los usuarios recomendados
     items_jugados_recomendados = df_items[df_items['user_id'].isin(user_ids_recomendados)]
+
+    # Obtener los nombres de los juegos más jugados por los usuarios recomendados
     top_games = items_jugados_recomendados['item_name'].value_counts().head(3)
 
+    #Itera sobre top_games sumandole un valor al idice (comienza en 0) para devolver el puesto y el juego
     resultado = [{"Puesto " + str(i + 1): juego} for i, juego in enumerate(top_games.index)]
     return resultado
 
@@ -109,8 +112,7 @@ def UsersNotRecommend(anio: int, df_items: pd.DataFrame, df_review: pd.DataFrame
     """
     
     # Filtrar las reviews para el año dado, no recomendadas y con análisis de sentimiento negativo
-    filtered_bad_reviews = df_review[(df_review['año_publicado'].notnull()) & 
-                                     (df_review['año_publicado'] == anio) & 
+    filtered_bad_reviews = df_review[(df_review['año_publicado'].fillna(0).astype(int) == anio) &
                                      (df_review['recommend'] == False) & 
                                      (df_review['sentiment_analysis'] == 0)]
 
@@ -126,6 +128,7 @@ def UsersNotRecommend(anio: int, df_items: pd.DataFrame, df_review: pd.DataFrame
     #Itera sobre top_games sumandole un valor al idice (comienza en 0) para devolver el puesto y el juego
     resultado = [{"Puesto " + str(i + 1): juego} for i, juego in enumerate(less_games.index)]
     return resultado
+
 
 def sentiment_analysis(anio: int, df_review: pd.DataFrame):
     """""
@@ -174,6 +177,8 @@ def obtener_recomendaciones(id_juego, cosine_similarity, df_funcion, n=5):
     
     return recomendaciones
 
+
+
 #  rutas para cada función
 @app.get("/playtime_genre/{genero}", description="Obtiene el año con más horas jugadas para un género específico.")
 async def get_playtime_genre(genero: str):
@@ -185,10 +190,6 @@ def get_user_for_genre(genero: str):
     resultado = UserForGenre(genero)
     return {"resultado": resultado}
 
-#@app.get("/users_recommend/{año}")
-#async def get_top_games(año: int):
- #   resultado = UsersRecommend(año, df_items, df_review)
-  #  return resultado
 
 @app.get("/users_recommend/{anio}", description="Obtiene top 3 de juegos más recomendados para un año específico.")
 async def get_users_recommend(anio: int):
@@ -198,14 +199,12 @@ async def get_users_recommend(anio: int):
     except ValueError as e:
        raise HTTPException(status_code=400, detail="Item not found",
             headers={"X-Error": "There goes my error"})
+    
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
     return PlainTextResponse(str(exc), status_code=400)
 
-#@app.get("/user_no_recommend/{anio}", description="Obtiene top 3 de juegos menos recomendados para un año específico.")
-#def get_user_no_recommend(anio: int):
-    #return {UsersNotRecommend(anio)}
 
 @app.get("/users_not_recommend/{anio}", description="Obtiene top 3 de juegos menos recomendados para un año específico.")
 async def get_users_not_recommend(anio: int):
@@ -215,6 +214,7 @@ async def get_users_not_recommend(anio: int):
     except ValueError as e:
        raise HTTPException(status_code=400, detail="Item not found",
             headers={"X-Error": "There goes my error"})
+    
 
 @app.get("/sentiment_analysis/{anio}", description="Realiza análisis de sentimiento en un año específico.")
 async def get_sentiment_analysis(anio: int):
@@ -225,11 +225,8 @@ async def get_sentiment_analysis(anio: int):
        raise HTTPException(status_code=400, detail="Item not found",
             headers={"X-Error": "There goes my error"})
 
-#def get_sentiment_analysis(anio: int):
-   # resultado = sentiment_analysis(anio)
-    #return {"resultado": resultado}
 
-@app.get("/obtener_recomendaciones/{id_juego}", response_model=List[dict])
+@app.get("/obtener_recomendaciones/{id_juego}", response_model=List[dict], description= 'Ingresando el id de producto, se recibe una lista con 5 juegos recomendados similares al ingresado,  basadoen genros y recoemndaciones ')
 async def obtener_recomendaciones_endpoint(id_juego: int):
 
     recomendaciones = obtener_recomendaciones(id_juego, cosine_similarity, df_funcion, n=5)
