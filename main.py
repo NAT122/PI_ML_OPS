@@ -25,7 +25,7 @@ df_funcion= pd.read_csv(ZipFile('df_recomendaciones.zip').open('df_recomendacion
 cosine_similarity = joblib.load(ZipFile('cosine_similarity.zip').open('cosine_similarity.pkl'))
 
 def PlayTimeGenre(genero: str):
-    """""
+    """
     Devuelve año con mas horas jugadas para dicho género.
     """
     
