@@ -230,7 +230,7 @@ async def get_sentiment_analysis(anio: int):
             headers={"X-Error": "There goes my error"})
 
 
-@app.get("/obtener_recomendaciones/{id_juego}", response_model=List[dict], description= 'Ingresando el id de producto, se recibe una lista con 5 juegos recomendados similares al ingresado,  basadoen genros y recoemndaciones ')
+@app.get("/obtener_recomendaciones/{id_juego}", response_model=List[dict], description= 'Ingresando el id del juego, se recibe una lista con 5 juegos recomendados similares al ingresado,  basandose en generos y recomendaciones ')
 async def obtener_recomendaciones_endpoint(id_juego: int):
 
     recomendaciones = obtener_recomendaciones(id_juego, cosine_similarity, df_games, df_items, df_review, n=5)
