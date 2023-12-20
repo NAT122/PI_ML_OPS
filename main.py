@@ -2,9 +2,6 @@ from fastapi import FastAPI
 import pandas as pd
 import numpy as np
 from typing import List
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import PlainTextResponse
 from zipfile import ZipFile
 import joblib
 from sklearn.metrics.pairwise import cosine_similarity
@@ -17,7 +14,6 @@ def cargar_df_items():
 
 def cargar_df_games():
     return pd.read_csv(ZipFile('df_games.zip').open('df_games.csv'))
-
 
 def cargar_df_reviews():
     return pd.read_csv(ZipFile('df_reviews.zip').open('df_reviews.csv'))
@@ -228,47 +224,28 @@ def get_user_for_genre(genero: str):
 
 @app.get("/users_recommend/{anio}", description="Obtiene top 3 de juegos más recomendados para un año específico.")
 async def get_users_recommend(anio: int):
-    try:
-        resultados = UsersRecommend(anio)
-        return {"resultado": resultados}
-    except ValueError as e:
-       raise HTTPException(status_code=400, detail="Item not found",
-            headers={"X-Error": "There goes my error"})
-    
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request, exc):
-    return PlainTextResponse(str(exc), status_code=400)
+    resultados = UsersRecommend(anio)
+    return {"resultado": resultados}
+        
 
 
 @app.get("/users_not_recommend/{anio}", description="Obtiene top 3 de juegos menos recomendados para un año específico.")
 async def get_users_not_recommend(anio: int):
-    try:
-        resultados = UsersNotRecommend(anio)
-        return {"resultado": resultados}
-    except ValueError as e:
-       raise HTTPException(status_code=400, detail="Item not found",
-            headers={"X-Error": "There goes my error"})
+    resultados = UsersNotRecommend(anio)
+    return {"resultado": resultados}
+
     
 
 @app.get("/sentiment_analysis/{anio}", description="Realiza análisis de sentimiento en un año específico.")
 async def get_sentiment_analysis(anio: int):
-    try:
-        resultados = sentiment_analysis(anio)
-        return {"resultado": resultados}
-    except ValueError as e:
-       raise HTTPException(status_code=400, detail="Item not found",
-            headers={"X-Error": "There goes my error"})
-
+    resultados = sentiment_analysis(anio)
+    return {"resultado": resultados}
+    
 
 @app.get("/obtener_recomendaciones/{id_juego}", response_model=List[dict], description= 'Ingresando el id del juego, se recibe una lista con 5 juegos recomendados similares al ingresado,  basandose en generos y recomendaciones ')
 async def obtener_recomendaciones_endpoint(id_juego: int):
-    try:
-        recomendaciones = obtener_recomendaciones(id_juego, n = 5)
-        return recomendaciones
-    except ValueError as e:
-       raise HTTPException(status_code=400, detail="Item not found",
-            headers={"X-Error": "There goes my error"})
+    recomendaciones = obtener_recomendaciones(id_juego, n = 5)
+    return recomendaciones
 
 # Ejecutar la aplicación con Uvicorn en el puerto 8000
 #if __name__ == "__main__":
