@@ -9,27 +9,12 @@ from sklearn.metrics.pairwise import cosine_similarity
 app = FastAPI(debug=True)
 
 # Cargar el DataFrame df_items
-def cargar_df_items():
-    return pd.read_csv(ZipFile('df_items.zip').open('df_items.csv'))
-
-def cargar_df_games():
-    return pd.read_csv(ZipFile('df_games.zip').open('df_games.csv'))
-
-def cargar_df_reviews():
-    return pd.read_csv(ZipFile('df_reviews.zip').open('df_reviews.csv'))
-
-def cargar_ml():
-    return joblib.load(ZipFile('cosine_similarity.zip').open('cosine_similarity.pkl'))
-
-# Repite para los otros DataFrames
 
 
-# Repite para los otros DataFrames
 
-
-#df_review= pd.read_csv(ZipFile('df_reviews.zip').open('df_reviews.csv'))
-#df_games= pd.read_csv(ZipFile('df_games.zip').open('df_games.csv'))
-#df_items= pd.read_csv(ZipFile('df_items.zip').open('df_items.csv'))
+df_review= pd.read_csv(ZipFile('df_reviews.zip').open('df_reviews.csv'))
+df_games= pd.read_csv(ZipFile('df_games.zip').open('df_games.csv'))
+df_items= pd.read_csv(ZipFile('df_items.zip').open('df_items.csv'))
 
 
 cosine_similarity = joblib.load(ZipFile('cosine_similarity.zip').open('cosine_similarity.pkl'))
@@ -39,8 +24,7 @@ def PlayTimeGenre(genero: str):
     """
     Devuelve año con mas horas jugadas para dicho género.
     """
-    df_items = cargar_df_items()
-    df_games = cargar_df_games()
+
     # Verificar si el género está presente como una columna en df_games
     if genero not in df_games.columns:
         return f"No se encontró información para el género {genero}"
@@ -57,8 +41,7 @@ def PlayTimeGenre(genero: str):
     
     # Encontrar el año con más horas jugadas para el género específico
     año_mas_horas = horas_jugadas_genero.groupby('año')['playtime_forever'].sum().idxmax()
-    del df_items
-    del df_games
+    
     return {f"Año de lanzamiento con más horas jugadas para el género {genero}": año_mas_horas}
 
 
@@ -67,8 +50,7 @@ def UserForGenre(genero: str):
     Devuelve el usuario que acumula más horas jugadas para el género dado 
     y una lista de la acumulación de horas jugadas por año.
     """""
-    df_items = cargar_df_items()
-    df_games = cargar_df_games()
+   
     # Filtrar juegos por género
     juegos_genero = df_games[df_games[genero] == 1]
     if juegos_genero.empty:
@@ -85,8 +67,7 @@ def UserForGenre(genero: str):
     # Calcular horas jugadas por año del usuario
     horas_por_año = merged_data[merged_data['user_id'] == user_mas_horas].groupby('año')['playtime_forever'].sum().to_dict()
     horas_por_año = {int(año): horas for año, horas in horas_por_año.items()}
-    del df_items
-    del df_games
+   
     return user_mas_horas, horas_por_año
 
 
@@ -96,8 +77,7 @@ def UsersRecommend(anio: int):
     Devuelve el top 3 de juegos MÁS recomendados por usuarios para el año dado
     basándose en reviews.recommend = True y comentarios positivos/neutrales
     """
-    df_items = cargar_df_items()
-    df_review = cargar_df_reviews()
+
     # Filtrar las reviews para el año dado, recomendadas y con análisis de sentimiento bueno o neutral
     filtered_reviews = df_review[
         (df_review['año_publicado'].fillna(0).astype(int) == anio) &
@@ -116,8 +96,7 @@ def UsersRecommend(anio: int):
 
     # Crear el resultado en el formato deseado
     resultado = [{"Puesto " + str(i + 1): juego} for i, juego in enumerate(top_games.index)]
-    del df_items
-    del df_review
+  
     return resultado
 
 
@@ -126,8 +105,7 @@ def UsersNotRecommend(anio: int):
     Devuelve el top 3 de juegos MENOS recomendados por usuarios para el año dado.
     basándose en reviews.recommend = False y comentarios negativos
     """
-    df_items = cargar_df_items()
-    df_review = cargar_df_reviews()
+
     # Filtrar las reviews para el año dado, no recomendadas y con análisis de sentimiento negativo
     filtered_bad_reviews = df_review[
         (df_review['año_publicado'].fillna(0).astype(int) == anio) &
@@ -146,8 +124,7 @@ def UsersNotRecommend(anio: int):
 
     # Crear el resultado en el formato deseado
     resultado = [{"Puesto " + str(i + 1): juego} for i, juego in enumerate(less_games.index)]
-    del df_items
-    del df_review
+    
     return resultado
 
 
@@ -157,7 +134,7 @@ def sentiment_analysis(anio: int):
     de registros de reseñas de usuarios que se encuentren categorizados con un análisis de sentimiento.
     2=positivo 1=neutral 0=negativo
     """
-    df_review = cargar_df_reviews()
+ 
     # Filtrar las reviews para el año dado, excluyendo los valores nulos en 'año_publicado'
     reviews_year = df_review[(df_review['año_publicado'].notnull()) & (df_review['año_publicado'] == anio)]
 
@@ -167,17 +144,13 @@ def sentiment_analysis(anio: int):
 
     # Crear el diccionario con la cantidad de registros por categoría de sentimiento
     resultado = [{sentiment: sentiment_counts.get(sentiment, 0) for sentiment in ['Negative', 'Neutral', 'Positive']}]
-    del df_review
+    
     return resultado
 
 
 
 def obtener_recomendaciones(id_juego: int, n = 5):
 
-    df_items = cargar_df_items()
-    df_review = cargar_df_reviews()
-    df_games = cargar_df_games()
-    cosine_similarity = cargar_ml()
     if id_juego not in df_games['id'].values:
         return "ID de juego no encontrado en el DataFrame df_games"
 
@@ -204,10 +177,7 @@ def obtener_recomendaciones(id_juego: int, n = 5):
 
     # Crear el resultado en el formato correct
     recomendaciones = [{"Juego " + str(i + 1): juego} for i, juego in enumerate(juegos_recomendados)]
-    del df_items
-    del df_games
-    del df_review
-    del cosine_similarity 
+
     return recomendaciones
 
 #  rutas para cada función
