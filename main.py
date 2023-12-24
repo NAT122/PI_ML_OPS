@@ -3,50 +3,18 @@ import pandas as pd
 import numpy as np
 from typing import List
 from zipfile import ZipFile
-import joblib
-from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
 
 app = FastAPI(debug=True)
 
 # Cargar el DataFrame df_items
 
-df_review = pd.read_csv('df_reviews.csv')
-df_games = pd.read_csv('df_games.csv')
-df_items = pd.read_csv('df_items.csv')
-
-
-#df_review= pd.read_csv(ZipFile('df_reviews.zip').open('df_reviews.csv'))
-#df_games= pd.read_csv(ZipFile('df_games.zip').open('df_games.csv'))
-#df_items= pd.read_csv(ZipFile('df_items.zip').open('df_items.csv'))
+df_review= pd.read_csv(ZipFile('df_reviews.zip').open('df_reviews.csv'))
+df_games= pd.read_csv(ZipFile('df_games.zip').open('df_games.csv'))
+df_items= pd.read_csv(ZipFile('df_items.zip').open('df_items.csv'))
 
 
 
-'''''
-def PlayTimeGenre(genero: str):
-    """
-    Devuelve año con mas horas jugadas para dicho género.
-    """
-
-    # Verificar si el género está presente como una columna en df_games
-    if genero not in df_games.columns:
-        return f"No se encontró información para el género {genero}"
-    
-    # Pre-filtrar df_games para obtener los juegos del género específico
-    juegos_genero = df_games[df_games[genero] == 1]
-    nombres_juegos_genero = juegos_genero['app_name']
-    
-    # Filtrar df_items directamente usando la columna 'item_name' sin convertir a una lista
-    horas_jugadas_genero = df_items[df_items['item_name'].isin(nombres_juegos_genero)]
-
-    # Filtrar y fusionar los DataFrames dentro de una operación
-    horas_jugadas_genero = horas_jugadas_genero.merge(df_games[['id', 'año']], left_on='item_id', right_on='id')
-    
-    # Encontrar el año con más horas jugadas para el género específico
-    año_mas_horas = horas_jugadas_genero.groupby('año')['playtime_forever'].sum().idxmax()
-    
-    return {f"Año de lanzamiento con más horas jugadas para el género {genero}": año_mas_horas}
-'''
 
 def PlayTimeGenre(genero: str):
     """
@@ -74,32 +42,7 @@ def PlayTimeGenre(genero: str):
     año_mas_horas = int(año_mas_horas)
     return {f"Año de lanzamiento con más horas jugadas para el género {genero}": año_mas_horas}
 
-'''
-def UserForGenre(genero: str):
-    """""
-    Devuelve el usuario que acumula más horas jugadas para el género dado 
-    y una lista de la acumulación de horas jugadas por año.
-    """""
-   
-    # Filtrar juegos por género
-    juegos_genero = df_games[df_games[genero] == 1]
-    if juegos_genero.empty:
-        return f"No se encontró información para el género {genero}"
 
-    # Obtener nombres de juegos y filtrar horas jugadas por género
-    nombres_juegos_genero = juegos_genero['app_name']
-    horas_jugadas_genero = df_items[df_items['item_name'].isin(nombres_juegos_genero)]
-
-    # Fusionar DataFrames y encontrar usuario con más horas jugadas
-    merged_data = horas_jugadas_genero.merge(df_games[['id', 'año']], left_on='item_id', right_on='id')
-    user_mas_horas = merged_data.groupby('user_id')['playtime_forever'].sum().idxmax()
-
-    # Calcular horas jugadas por año del usuario
-    horas_por_año = merged_data[merged_data['user_id'] == user_mas_horas].groupby('año')['playtime_forever'].sum().to_dict()
-    horas_por_año = {int(año): horas for año, horas in horas_por_año.items()}
-   
-    return user_mas_horas, horas_por_año
-'''
 def UserForGenre(genero: str):
     """
     Devuelve el usuario que acumula más horas jugadas para el género dado 
@@ -133,34 +76,8 @@ def UserForGenre(genero: str):
 
     return user_mas_horas, horas_por_año
 
-'''
-def UsersRecommend(anio: int):
-    """
-    Devuelve el top 3 de juegos MÁS recomendados por usuarios para el año dado
-    basándose en reviews.recommend = True y comentarios positivos/neutrales
-    """
 
-    # Filtrar las reviews para el año dado, recomendadas y con análisis de sentimiento bueno o neutral
-    filtered_reviews = df_review[
-        (df_review['año_publicado'].fillna(0).astype(int) == anio) &
-        (df_review['recommend']) &
-        (df_review['sentiment_analysis'].isin([1, 2]))  # Filtrar solo sentimientos buenos o neutrales
-    ]
 
-    # Obtener los user_ids de las reviews filtradas
-    user_ids_recomendados = filtered_reviews['user_id']
-
-    # Filtrar los items jugados por los usuarios recomendados
-    items_jugados_recomendados = df_items[df_items['user_id'].isin(user_ids_recomendados)]
-
-    # Obtener los nombres de los juegos más jugados por los usuarios recomendados
-    top_games = items_jugados_recomendados['item_name'].value_counts().nlargest(3)
-
-    # Crear el resultado en el formato deseado
-    resultado = [{"Puesto " + str(i + 1): juego} for i, juego in enumerate(top_games.index)]
-  
-    return resultado
-'''
 def UsersRecommend(anio: int):
     """
     Devuelve el top 3 de juegos MÁS recomendados por usuarios para el año dado
@@ -185,34 +102,7 @@ def UsersRecommend(anio: int):
   
     return resultado
 
-'''
-def UsersNotRecommend(anio: int):
-    """
-    Devuelve el top 3 de juegos MENOS recomendados por usuarios para el año dado.
-    basándose en reviews.recommend = False y comentarios negativos
-    """
 
-    # Filtrar las reviews para el año dado, no recomendadas y con análisis de sentimiento negativo
-    filtered_bad_reviews = df_review[
-        (df_review['año_publicado'].fillna(0).astype(int) == anio) &
-        (df_review['recommend'] == False) &
-        (df_review['sentiment_analysis'] == 0)  # Filtrar solo sentimientos negativos
-    ]
-
-    # Obtener los user_ids de las reviews filtradas
-    user_ids_not_recommended = filtered_bad_reviews['user_id']
-
-    # Filtrar los items jugados por los usuarios no recomendados
-    items_jugados_no_recomendados = df_items[df_items['user_id'].isin(user_ids_not_recommended)]
-
-    # Obtener los nombres de los juegos menos jugados por los usuarios no recomendados
-    less_games = items_jugados_no_recomendados['item_name'].value_counts().nsmallest(3)
-
-    # Crear el resultado en el formato deseado
-    resultado = [{"Puesto " + str(i + 1): juego} for i, juego in enumerate(less_games.index)]
-    
-    return resultado
-'''
 def UsersNotRecommend(anio: int):
     """
     Devuelve el top 3 de juegos MÁS recomendados por usuarios para el año dado
@@ -234,26 +124,7 @@ def UsersNotRecommend(anio: int):
     # Crear el resultado en el formato deseado
     return resultado
   
-'''
-def sentiment_analysis(anio: int):
-    """""
-    Según el año de lanzamiento, se devuelve una lista con la cantidad 
-    de registros de reseñas de usuarios que se encuentren categorizados con un análisis de sentimiento.
-    2=positivo 1=neutral 0=negativo
-    """
- 
-    # Filtrar las reviews para el año dado, excluyendo los valores nulos en 'año_publicado'
-    reviews_year = df_review[(df_review['año_publicado'].notnull()) & (df_review['año_publicado'] == anio)]
 
-    # Contar la cantidad de registros por cada categoría de sentimiento para el año dado
-    sentiment_counts = reviews_year['sentiment_analysis'].replace({0: 'Negative', 1: 'Neutral', 2: 'Positive'}).value_counts()
-    sentiment_counts = {key: int(value) for key, value in sentiment_counts.items()}
-
-    # Crear el diccionario con la cantidad de registros por categoría de sentimiento
-    resultado = [{sentiment: sentiment_counts.get(sentiment, 0) for sentiment in ['Negative', 'Neutral', 'Positive']}]
-    
-    return resultado
-'''
 def sentiment_analysis(anio: int):
     """
     Según el año de lanzamiento, se devuelve una lista con la cantidad 
@@ -279,71 +150,7 @@ def sentiment_analysis(anio: int):
     
     return resultado
 
-'''
-def obtener_recomendaciones(id_juego: int, n = 5):
 
-    if id_juego not in df_games['id'].values:
-        return "ID de juego no encontrado en el DataFrame df_games"
-
-    # Obtener el índice del juego según el ID en df_games
-    idx = df_games.index[df_games['id'] == id_juego][0]
-
-    # Obtener las puntuaciones de similitud para el juego 
-    sim_scores = cosine_similarity[idx]
-
-    # Ordenar y seleccionar los juegos similares
-    juego_indices = np.argsort(sim_scores)[::-1][1:n+1]
-
-    # Obtener los item_ids de los juegos similares desde df_games
-    item_ids_similares = df_games.iloc[juego_indices]['id']
-
-    # Obtener los user_ids que han jugado juegos similares desde df_items
-    user_ids_similares = df_items[df_items['item_id'].isin(item_ids_similares)]['user_id']
-
-    # Filtrar las reviews de los usuarios que jugaron juegos similares desde df_review
-    reviews_usuarios_similares = df_review[df_review['user_id'].isin(user_ids_similares)]
-
-    # Obtener los nombres de los juegos desde df_items usando los item_ids
-    juegos_recomendados = df_items[df_items['user_id'].isin(reviews_usuarios_similares['user_id'])]['item_name'].unique()[:n]
-
-    # Crear el resultado en el formato correct
-    recomendaciones = [{"Juego " + str(i + 1): juego} for i, juego in enumerate(juegos_recomendados)]
-
-    return recomendaciones
-    
-    
-def obtener_recomendaciones(id_juego: int, df_games, n:int = 5):
-    # Filtrar las columnas para construir la matriz de características
-    columns_to_use = df_games.columns.difference(['item_id', 'app_name', 'año'])  # Excluir columnas 'id' y 'app_name'
-    df_games_filtered = df_games[columns_to_use].copy()
-
-    # Manejar valores NaN si es necesario
-    df_games_filtered.dropna(inplace=True)
-
-    # Calcular la similitud coseno entre los juegos
-    #cosine_sim = cosine_similarity(df_games_filtered, df_games_filtered)
-    cosine_sim = cosine_similarity(df_games_filtered)
-
-    if id_juego not in df_games['item_id'].values:
-        return "ID de juego no encontrado en el DataFrame df_games"
-    
-    # Obtener el índice del juego según el ID en df_games
-    idx = df_games.index[df_games['item_id'] == id_juego][0]
-    
-    # Obtener las puntuaciones de similitud para el juego dado
-    sim_scores = cosine_sim[idx]
-    
-    # Ordenar y seleccionar los juegos similares
-    juego_indices = np.argsort(sim_scores)[::-1][1:n+1]
-
-    # Obtener los títulos y IDs de los juegos recomendados desde df_games
-    juegos_recomendados = df_games.loc[juego_indices, ['item_id', 'app_name']]
-    
-    # Convertir los juegos recomendados a una lista de diccionarios
-    recomendaciones = juegos_recomendados.to_dict(orient='records')
-    
-    return recomendaciones
-'''
 
 def obtener_recomendaciones(id_juego: int, n=5):
     # Fusionar los DataFrames en uno solo
