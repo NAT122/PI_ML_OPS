@@ -15,7 +15,6 @@ df_items= pd.read_csv(ZipFile('df_items.zip').open('df_items.csv'))
 
 
 
-
 def PlayTimeGenre(genero: str):
     """
     Devuelve año con más horas jugadas para dicho género.
@@ -87,7 +86,7 @@ def UsersRecommend(anio: int):
     # Filtrar las reviews para el año dado, recomendadas y con análisis de sentimiento bueno o neutral
     filtered_reviews = df_review[
         (df_review['año_publicado'].fillna(0).astype(int) == anio) &
-        (df_review['recommend'] == 1) &
+        (df_review['recommend'] == True) &
         (df_review['sentiment_analysis'].isin([1, 2]))  # Filtrar solo sentimientos buenos o neutrales
     ]
 
@@ -112,7 +111,7 @@ def UsersNotRecommend(anio: int):
     # Filtrar las reviews para el año dado, recomendadas y con análisis de sentimiento bueno o neutral
        # Filtrar las reviews para el año dado, no recomendadas y con análisis de sentimiento negativo
     filtered_malas_reviews = df_review[(df_review['año_publicado'].fillna(0).astype(int) == anio) &
-                                     (df_review['recommend'] == 0) & 
+                                     (df_review['recommend'] == False) & 
                                      (df_review['sentiment_analysis'] == 0)]
 
     # Obtener los user_ids de las reviews filtradas
@@ -153,18 +152,13 @@ def sentiment_analysis(anio: int):
 
 
 def obtener_recomendaciones(id_juego: int, n=5):
-    # Fusionar los DataFrames en uno solo
-    df_merged = pd.merge(df_games, df_review.drop(columns=['año_publicado'], axis=1), on='item_id', how='outer')
-
-    # Seleccionar columnas relevantes para el entrenamiento
+    # Seleccionar columnas de géneros relevantes para el entrenamiento
     columnas_generos = df_games.columns.difference(['app_name', 'item_id', 'año']).tolist()
-    columnas_recomendado = ['recommend']  # Suponiendo 'recomendado' es la columna de interés de df_review
-    columnas_sentimiento = ['sentiment_analysis']  # Suponiendo 'analisis_de_sentimiento' es la columna de interés de df_review
 
-    # Obtener matriz de características combinada
-    matriz_caracteristicas_combinada = df_merged[columnas_generos + columnas_recomendado + columnas_sentimiento].dropna()
+    # Obtener matriz de características combinada solo con los géneros
+    matriz_caracteristicas_combinada = df_games[columnas_generos]
 
-    # Entrenar el modelo NearestNeighbors con la matriz combinada
+    # Entrenar el modelo NearestNeighbors con la matriz de géneros
     nn_model = NearestNeighbors(metric='cosine')
     nn_model.fit(matriz_caracteristicas_combinada)
 
@@ -172,20 +166,19 @@ def obtener_recomendaciones(id_juego: int, n=5):
     if id_juego not in df_games['item_id'].values:
         return "ID de juego no encontrado en el DataFrame"
 
-    idx = df_games.index[df_games['item_id'] == id_juego][0]
-    idx = matriz_caracteristicas_combinada.index.get_loc(idx)  # Índice en la matriz de características
+    idx = df_games[df_games['item_id'] == id_juego].index[0]  # Índice en el DataFrame
 
-    # Encontrar los vecinos más cercanos
-    distances, indices = nn_model.kneighbors([matriz_caracteristicas_combinada.iloc[idx]], n_neighbors=n+1)
+    # Obtener características del juego seleccionado
+    juego_seleccionado = [matriz_caracteristicas_combinada.iloc[idx]]
 
-    # Excluir el juego en sí mismo de las recomendaciones
+    distances, indices = nn_model.kneighbors(juego_seleccionado, n_neighbors=n+1)
     indices = indices.flatten()[1:]
 
-    # Obtener los juegos recomendados
     juegos_recomendados = df_games.iloc[indices][['item_id', 'app_name']]
     recomendaciones = juegos_recomendados.to_dict(orient='records')
 
     return recomendaciones
+
 
 
 #  rutas para cada función
