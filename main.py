@@ -96,7 +96,7 @@ def UsersRecommend(anio: int):
     # Obtener los nombres de los juegos más jugados por los usuarios recomendados
     top_games = juegos_recomendados['app_name'].value_counts().nlargest(3)
 
-    # Crear el resultado en el formato deseado
+    # Crear el resultado en el formato necesario
     resultado = [{"Puesto " + str(i + 1): juego} for i, juego in enumerate(top_games.index)]
   
     return resultado
@@ -120,7 +120,7 @@ def UsersNotRecommend(anio: int):
     # Obtener los nombres de los juegos más jugados por los usuarios recomendados
     menos_games = juegos_no_recomendados['app_name'].value_counts().nsmallest(3)
     resultado = [{"Puesto " + str(i + 1): juego} for i, juego in enumerate(menos_games.index)]
-    # Crear el resultado en el formato deseado
+    # Crear el resultado en el formato necesario
     return resultado
   
 
@@ -131,20 +131,19 @@ def sentiment_analysis(anio: int):
     2=positivo 1=neutral 0=negativo
     """
 
-    # Filtrar las reviews para el año dado, excluyendo los valores nulos en 'año_publicado'
+    # Filtrar las reviews para el año dado, excluyendo los valores nulos 
     reviews_year = df_review[df_review['año_publicado'] == anio]
 
-    # Obtener los IDs de los juegos lanzados en el año dado (df_games)
+    # id de los juegos lanzados en el año dado (df_games)
     ids_juegos_lanzados = df_games[df_games['año'] == anio]['item_id']
 
-    # Filtrar las reviews por los IDs de juegos lanzados en el año dado
+    # Filtrar las reviews por los id de juegos segun el año
     reviews_year = reviews_year[reviews_year['item_id'].isin(ids_juegos_lanzados)]
 
-    # Contar la cantidad de registros por cada categoría de sentimiento para el año dado
+    # Contar la cantidad de categoría de 'sentiment_analysis' segun el año
     sentiment_counts = reviews_year['sentiment_analysis'].replace({0: 'Negative', 1: 'Neutral', 2: 'Positive'}).value_counts()
     sentiment_counts = {key: int(value) for key, value in sentiment_counts.items()}
 
-    # Crear el diccionario con la cantidad de registros por categoría de sentimiento
     resultado = [{sentiment: sentiment_counts.get(sentiment, 0) for sentiment in ['Negative', 'Neutral', 'Positive']}]
     
     return resultado
@@ -152,23 +151,24 @@ def sentiment_analysis(anio: int):
 
 
 def obtener_recomendaciones(id_juego: int, n=5):
-    # Seleccionar columnas de géneros relevantes para el entrenamiento
+    # Seleccionar columnas de géneros relevantes para el modelo
     columnas_generos = df_games.columns.difference(['app_name', 'item_id', 'año']).tolist()
 
-    # Obtener matriz de características combinada solo con los géneros
+    # solo con los géneros
     matriz_caracteristicas_combinada = df_games[columnas_generos]
 
-    # Entrenar el modelo NearestNeighbors con la matriz de géneros
+    # modelo NearestNeighbors con la matriz de géneros
     nn_model = NearestNeighbors(metric='cosine')
     nn_model.fit(matriz_caracteristicas_combinada)
 
-    # Buscar los vecinos más cercanos del juego dado
+    # Buscar los vecinos más cercanos del juego indicad
+    #verificaar qe el juego este en el df gamas
     if id_juego not in df_games['item_id'].values:
         return "ID de juego no encontrado en el DataFrame"
 
     idx = df_games[df_games['item_id'] == id_juego].index[0]  # Índice en el DataFrame
 
-    # Obtener características del juego seleccionado
+    # Obtener características del juego 
     juego_seleccionado = [matriz_caracteristicas_combinada.iloc[idx]]
 
     distances, indices = nn_model.kneighbors(juego_seleccionado, n_neighbors=n+1)
@@ -213,7 +213,7 @@ async def get_sentiment_analysis(anio: int):
     return {"resultado": resultados}
     
 
-@app.get("/obtener_recomendaciones/{id_juego}", response_model=List[dict], description= 'Ingresando el id del juego, se recibe una lista con 5 juegos recomendados similares al ingresado,  basandose en generos y recomendaciones ')
+@app.get("/obtener_recomendaciones/{id_juego}", response_model=List[dict], description= 'Ingresando el id del juego, se recibe una lista con 5 juegos recomendados similares al ingresado,  basandose en generos y año ')
 async def obtener_recomendaciones_endpoint(id_juego: int):
     recomendaciones = obtener_recomendaciones(id_juego,n=5)
     return recomendaciones
